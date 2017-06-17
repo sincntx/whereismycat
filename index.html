@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Where is my cat?</title>
+    <meta name="viewport" content="width=480, initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="full-screen" content="yes"/>
+    <meta name="screen-orientation" content="portrait"/>
+    <meta name="x5-fullscreen" content="true"/>
+    <meta name="360-fullscreen" content="true"/>
+
+    <style>
+        body, canvas, div {
+            -moz-user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            -khtml-user-select: none;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+        }
+
+        body {
+            padding:0; margin: 0;
+            background-color:#333;
+        }
+    </style>
+</head>
+<body>   
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script type="text/javascript" src="cocos2d-js-v3.13-lite.js" charset="UTF-8"></script>
+    <script type="text/javascript">
+          window.onload = function(){
+              cc.game.onStart = function(){
+
+                  cc.view.enableRetina(true);
+                  cc.view.adjustViewPort(true);
+                  cc.view.setDesignResolutionSize(3072, 1536, cc.ResolutionPolicy.SHOW_ALL);
+                  cc.view.resizeWithBrowserSize(true);
+
+                  //load resources
+                  var res = ["res/bg.wav", "res/meow.ogg", "res/ouch.mp3", "res/perfect.ogg", "res/bg.png", "res/b_Forward1.png", "res/b_Forward2.png", "res/b_Backward1.png", "res/b_Backward2.png"], standRes = [], runRes = [], loseRes = [], winRes = [];
+                  var i = 0;
+
+                  for(i = 1;i < 11;i++) {
+                      standRes.push("res/cat/n" + i + ".png");
+                  }
+
+                  for(i = 1;i < 9;i++) {
+                      runRes.push("res/cat/Run(" + i + ").png");
+                  }
+
+                  for(i = 1;i < 11;i++) {
+                      loseRes.push("res/cat/Dead(" + i + ").png");
+                  }
+
+                  for(i = 1;i < 9;i++) {
+                      winRes.push("res/cat/Jump(" + i + ").png");
+                  }
+
+                  for(i = 1;i < 9;i++) {
+                      winRes.push("res/cat/Fall(" + i + ").png");
+                  }
+
+                  res.concat(standRes).concat(runRes).concat(loseRes).concat(winRes);
+
+                  cc.LoaderScene.preload(res, function () {
+                      var MyScene = cc.Scene.extend({
+                          cat : null,
+                          leftBtn : null,
+                          rightBtn : null,
+                          size : null,
+                          runAni : null,
+                          standAni : null,
+                          DIRECTION : {
+                              RIGHT : 0,
+                              LEFT : 1
+                          },
+                          userChoice : 0,
+                          result : 0,
+                          onEnter:function () {
+                              this._super();
+                              this.size = cc.director.getWinSize();
+
+                              var bg = cc.Sprite.create("res/bg.png");
+                              bg.setPosition(this.size.width / 2, this.size.height / 2);
+                              this.addChild(bg, 0);
+
+                              /*var label = cc.LabelTTF.create("Where is my cat?", "Arial", 80);
+                              label.color = cc.color(0, 0, 0);
+                              label.setPosition(size.width / 2, size.height / 2);
+                              this.addChild(label, 1);*/
+
+                              this.cat = cc.Sprite.create("res/cat/n1.png");
+                              this.cat.setPosition(this.size.width / 2, this.size.height / 3.6);
+                              this.addChild(this.cat, 1);
+
+                              this.standAni = new cc.Animation();
+
+                              for(i = 1;i < standRes.length;i++) {
+                                  this.standAni.addSpriteFrameWithFile(standRes[i]);
+                              }
+
+                              this.standAni.setDelayPerUnit(0.05);
+
+                              this.runAni = new cc.Animation();
+
+                              for(i = 1;i < runRes.length;i++) {
+                                  this.runAni.addSpriteFrameWithFile(runRes[i]);
+                              }
+
+                              this.runAni.setDelayPerUnit(0.05);
+
+                              this.winAni = new cc.Animation();
+
+                              for(i = 1;i < winRes.length;i++) {
+                                  this.winAni.addSpriteFrameWithFile(winRes[i]);
+                              }
+
+                              this.winAni.setDelayPerUnit(0.1);
+
+                              this.loseAni = new cc.Animation();
+
+                              for(i = 1;i < loseRes.length;i++) {
+                                  this.loseAni.addSpriteFrameWithFile(loseRes[i]);
+                              }
+
+                              this.loseAni.setDelayPerUnit(0.1);
+
+                              // init choice menu
+                              var leftItem = new cc.MenuItemImage("res/b_Backward1.png", "res/b_Backward2.png", function (sender) {
+                                  sender.parent.parent.onChoice(sender.parent.parent.DIRECTION.LEFT);
+                              }, this);
+
+                              leftItem.scale = 2;
+
+                              this.leftBtn = new cc.Menu(leftItem);
+                              this.leftBtn.setPosition(cc.p(this.size.width / 2 - this.size.width / 2.5, this.size.height / 2));
+                              this.addChild(this.leftBtn);
+                              this.leftBtn.opacity = 0;
+
+                              var rightItem = new cc.MenuItemImage("res/b_Forward1.png", "res/b_Forward2.png", function (sender) {
+                                  sender.parent.parent.onChoice(sender.parent.parent.DIRECTION.RIGHT);
+                              }, this);
+
+                              rightItem.scale = 2;
+
+                              this.rightBtn = new cc.Menu(rightItem);
+                              this.rightBtn.setPosition(cc.p(this.size.width / 2 + this.size.width / 2.5, this.size.height / 2));
+                              this.addChild(this.rightBtn);
+                              this.rightBtn.opacity = 0;
+
+                              cc.audioEngine.playMusic("res/bg.wav", true);
+
+                              this.standCat();
+                          },
+                          ready:function() {
+                              this.leftBtn.runAction(new cc.FadeIn(1));
+                              this.rightBtn.runAction(new cc.FadeIn(1));
+
+                              this.thinkCat();
+                          },
+                          onChoice:function(direction) {
+                              cc.audioEngine.playEffect("res/meow.ogg");
+
+                              userChoice = direction;
+
+                              this.leftBtn.runAction(new cc.FadeOut(0.5));
+                              this.rightBtn.runAction(new cc.FadeOut(0.5));
+
+                              result = Math.floor(Math.random() * 2);
+
+                              this.moveCat(result);
+                          },
+                          thinkCat: function() {
+                              this.cat.runAction(new cc.Sequence(
+                                 new cc.DelayTime(0.5),
+                                 new cc.FlipX(!this.cat.isFlippedX()),
+                                 new cc.CallFunc(function(sender) {
+                                    sender.parent.thinkCat();
+                                 })
+                              ));
+                          },
+                          moveCat:function(direction) {
+                              this.cat.stopAllActions();
+                              this.cat.runAction(new cc.FlipX(direction));
+                              this.cat.runAction(new cc.RepeatForever(new cc.Animate(this.runAni)));
+                              this.cat.runAction(new cc.Sequence(
+                                      new cc.MoveBy(1, cc.p(direction ? -this.size.width / 1.8 : this.size.width / 1.8, 0)),
+                                      new cc.CallFunc(function(sender) {
+                                          sender.parent.returnCat();
+                                      })
+                              ));
+                          },
+                          returnCat:function() {
+                              this.cat.stopAllActions();
+                              this.cat.runAction(new cc.FlipX(!this.cat.isFlippedX()));
+                              this.cat.runAction(new cc.RepeatForever(new cc.Animate(this.runAni)));
+                              this.cat.runAction(new cc.Sequence(
+                                      new cc.MoveTo(1, cc.p(this.size.width / 2, this.size.height / 3.6)),
+                                      new cc.CallFunc(function(sender) {
+                                          sender.parent.resultCat();
+                                      })
+                              ));
+                          },
+                          resultCat:function() {
+                              this.cat.stopAllActions();
+
+                              if(userChoice == result) {
+                                cc.audioEngine.playEffect("res/perfect.ogg");
+
+                                this.cat.runAction(new cc.Sequence(
+                                    new cc.Animate(this.winAni),
+                                    new cc.CallFunc(function(sender) {
+                                        sender.parent.standCat();
+                                    })
+                                ));
+                              }
+                              else {
+                                  cc.audioEngine.playEffect("res/ouch.mp3");
+
+                                  this.cat.runAction(new cc.Sequence(
+                                          new cc.Animate(this.loseAni),
+                                          new cc.CallFunc(function(sender) {
+                                              sender.parent.standCat();
+                                          })
+                                  ));
+                              }
+                          },
+                          standCat:function() {
+                              this.cat.stopAllActions();
+                              this.cat.runAction(new cc.RepeatForever(new cc.Animate(this.standAni)));
+
+                              this.choice = -1;
+                              this.result = -2;
+
+                              this.runAction(new cc.Sequence(
+                                      new cc.DelayTime(0.5),
+                                      new cc.CallFunc(function(sender) {
+                                          sender.ready();
+                                      })
+                              ));
+                          }
+                      });
+                      cc.director.runScene(new MyScene());
+                  }, this);
+              };
+              cc.game.run("gameCanvas");
+          };
+    </script>
+</body>
+</html>
