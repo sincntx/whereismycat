@@ -2,7 +2,8 @@
 <html>
 <head>
     <title>Where is my cat?</title>
-    <meta name="viewport" content="width=480, initial-scale=1">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
     <meta name="apple-mobile-web-app-capable" content="yes"/>
     <meta name="full-screen" content="yes"/>
     <meta name="screen-orientation" content="portrait"/>
@@ -35,9 +36,13 @@
                   cc.view.adjustViewPort(true);
                   cc.view.setDesignResolutionSize(3072, 1536, cc.ResolutionPolicy.SHOW_ALL);
                   cc.view.resizeWithBrowserSize(true);
+                  cc.view.setOrientation(cc.ORIENTATION_LANDSCAPE);
 
                   //load resources
-                  var res = ["res/bg.wav", "res/meow.ogg", "res/ouch.mp3", "res/perfect.ogg", "res/bg.png", "res/b_Forward1.png", "res/b_Forward2.png", "res/b_Backward1.png", "res/b_Backward2.png"], standRes = [], runRes = [], loseRes = [], winRes = [];
+                  var res = ["res/red_button00.png", "res/grey_button05.png", "res/b_Play1.png", "res/b_Play2.png", "res/title.png",
+                        "res/bg.png", "res/b_Forward1.png", "res/b_Forward2.png", "res/b_Backward1.png", "res/b_Backward2.png",
+                        "res/bg.wav", "res/meow.ogg", "res/ouch.mp3", "res/perfect.ogg"],
+                      standRes = [], runRes = [], loseRes = [], winRes = [];
                   var i = 0;
 
                   for(i = 1;i < 11;i++) {
@@ -65,8 +70,12 @@
                   cc.LoaderScene.preload(res, function () {
                       var MyScene = cc.Scene.extend({
                           cat : null,
+                          title : null,
+
                           leftBtn : null,
                           rightBtn : null,
+                          startBtn : null,
+
                           size : null,
                           runAni : null,
                           standAni : null,
@@ -76,6 +85,14 @@
                           },
                           userChoice : 0,
                           result : 0,
+                          bet : 1000,
+                          betAmount : 0,
+                          balanceLabel : null,
+                          betAmountLabel : null,
+                          returnLabel : null,
+                          winRate : 1.96,
+                          isReady : false,
+                          sliderPer : 1,
                           onEnter:function () {
                               this._super();
                               this.size = cc.director.getWinSize();
@@ -89,9 +106,121 @@
                               label.setPosition(size.width / 2, size.height / 2);
                               this.addChild(label, 1);*/
 
+                              // cat
                               this.cat = cc.Sprite.create("res/cat/n1.png");
-                              this.cat.setPosition(this.size.width / 2, this.size.height / 3.6);
+                              this.cat.setPosition(this.size.width / 2, this.size.height / 2.35);
+                              this.cat.anchorY = 1;
                               this.addChild(this.cat, 1);
+
+                              this.title = cc.Sprite.create("res/title.png");
+                              this.title.setPosition(this.size.width / 2, this.size.height * 1.2);
+                              this.title.opacity = 0;
+                              this.addChild(this.title, 1);
+
+                              // layer panel
+                              this.betPanel = new cc.Layer();
+                              this.betPanel.cascadeOpacity = true;
+                              this.betPanel.width = 2000;
+                              this.betPanel.height = 600;
+                              this.betPanel.opacity = 0;
+                              this.betPanel.setPosition((this.size.width - this.betPanel.width) / 2, this.size.height / 6);
+                              this.addChild(this.betPanel, 1);
+
+                              var blackBackground = new cc.LayerColor();
+                              blackBackground.width = 2000;
+                              blackBackground.height = 200;
+                              blackBackground.color = cc.color(0, 0, 0);
+                              blackBackground.opacity = 170;
+                              blackBackground.setPosition(0, this.size.height / 3.8);
+                              this.betPanel.addChild(blackBackground, 1);
+
+                              // balance
+                              var balanceTitleLabel = cc.LabelTTF.create("YOUR BALANCE", "Verdana", 30);
+                              balanceTitleLabel.color = cc.color(150, 150, 150);
+                              balanceTitleLabel.setPosition(200, 550);
+                              this.betPanel.addChild(balanceTitleLabel, 2);
+
+                              this.balanceLabel = cc.LabelTTF.create("0 BET", "Verdana", 38);
+                              this.balanceLabel.color = cc.color(255, 255, 255);
+                              this.balanceLabel.setPosition(200, 500);
+                              this.betPanel.addChild(this.balanceLabel, 2);
+
+                              // bet amount
+                              var betAmountTitleLabel = cc.LabelTTF.create("BET AMOUNT", "Verdana", 30);
+                              betAmountTitleLabel.color = cc.color(150, 150, 150);
+                              betAmountTitleLabel.setPosition(600, 550);
+                              this.betPanel.addChild(betAmountTitleLabel, 2);
+
+                              this.betAmount = this.bet / 100;
+
+                              this.betAmountLabel = cc.LabelTTF.create(this.betAmount.toFixed(4) + " BET", "Verdana", 38);
+                              this.betAmountLabel.color = cc.color(255, 255, 255);
+                              this.betAmountLabel.setPosition(600, 500);
+                              this.betPanel.addChild(this.betAmountLabel, 2);
+
+                              // slider
+                              var slider = new ccui.Slider();
+                              slider.setTouchEnabled(true);
+                              slider.loadBarTexture("res/cocosui/sliderTrack.png");
+                              slider.loadSlidBallTextures("res/cocosui/sliderThumb.png", "res/cocosui/sliderThumb.png", "");
+                              slider.loadProgressBarTexture("res/cocosui/sliderProgress.png");
+                              slider.setPosition(600, 450);
+                              slider.addEventListener(this.sliderEvent, this);
+                              this.betPanel.addChild(slider, 2);
+
+                              // win chance
+                              var winChanceTitleLabel = cc.LabelTTF.create("WIN CHANCE", "Verdana", 30);
+                              winChanceTitleLabel.color = cc.color(150, 150, 150);
+                              winChanceTitleLabel.setPosition(1000, 550);
+                              this.betPanel.addChild(winChanceTitleLabel, 2);
+
+                              var winChanceLabel = cc.LabelTTF.create("50.0%", "Verdana", 38);
+                              winChanceLabel.color = cc.color(255, 255, 255);
+                              winChanceLabel.setPosition(1000, 500);
+                              this.betPanel.addChild(winChanceLabel, 2);
+
+                              // PAYOUT
+                              var payoutTitleLabel = cc.LabelTTF.create("PAYOUT", "Verdana", 30);
+                              payoutTitleLabel.color = cc.color(150, 150, 150);
+                              payoutTitleLabel.setPosition(1380, 550);
+                              this.betPanel.addChild(payoutTitleLabel, 2);
+
+                              var payoutLabel = cc.LabelTTF.create("x" + this.winRate, "Verdana", 38);
+                              payoutLabel.color = cc.color(255, 255, 255);
+                              payoutLabel.setPosition(1380, 500);
+                              this.betPanel.addChild(payoutLabel, 2);
+
+                              // RETURN
+                              var returnTitleLabel = cc.LabelTTF.create("RETURN", "Verdana", 30);
+                              returnTitleLabel.color = cc.color(150, 150, 150);
+                              returnTitleLabel.setPosition(1800, 550);
+                              this.betPanel.addChild(returnTitleLabel, 2);
+
+                              this.returnLabel = cc.LabelTTF.create((this.winRate * this.betAmount).toFixed(4) + " BET", "Verdana", 38);
+                              this.returnLabel.color = cc.color(255, 255, 255);
+                              this.returnLabel.setPosition(1800, 500);
+                              this.betPanel.addChild(this.returnLabel, 2);
+
+                              this.refreshLabels();
+
+                              var startBackground = new cc.Sprite("res/red_button00.png");
+                              startBackground.setPosition(1000, 150);
+                              startBackground.scale = 7;
+                              this.betPanel.addChild(startBackground, 2);
+
+                              // Start menu
+                              var startItem = new cc.MenuItemImage("res/b_Play2.png", "res/b_Play1.png", function (sender) {
+                                  sender.parent.enabled = false;
+                                  this.betPanel.runAction(new cc.FadeOut(0.5));
+                                  this.ready();
+                              }, this);
+
+                              startItem.scale = 1.5;
+
+                              this.startBtn = new cc.Menu(startItem);
+                              this.startBtn.setPosition(1000, 150);
+                              this.startBtn.enabled = false;
+                              this.betPanel.addChild(this.startBtn, 2);
 
                               this.standAni = new cc.Animation();
 
@@ -127,6 +256,8 @@
 
                               // init choice menu
                               var leftItem = new cc.MenuItemImage("res/b_Backward1.png", "res/b_Backward2.png", function (sender) {
+                                  if(!sender.parent.parent.isReady) return;
+                                  sender.parent.parent.isReady = false;
                                   sender.parent.parent.onChoice(sender.parent.parent.DIRECTION.LEFT);
                               }, this);
 
@@ -136,8 +267,11 @@
                               this.leftBtn.setPosition(cc.p(this.size.width / 2 - this.size.width / 2.5, this.size.height / 2));
                               this.addChild(this.leftBtn);
                               this.leftBtn.opacity = 0;
+                              this.leftBtn.enabled = false;
 
                               var rightItem = new cc.MenuItemImage("res/b_Forward1.png", "res/b_Forward2.png", function (sender) {
+                                  if(!sender.parent.parent.isReady) return;
+                                  sender.parent.parent.isReady = false;
                                   sender.parent.parent.onChoice(sender.parent.parent.DIRECTION.RIGHT);
                               }, this);
 
@@ -147,14 +281,42 @@
                               this.rightBtn.setPosition(cc.p(this.size.width / 2 + this.size.width / 2.5, this.size.height / 2));
                               this.addChild(this.rightBtn);
                               this.rightBtn.opacity = 0;
+                              this.rightBtn.enabled = false;
 
                               cc.audioEngine.playMusic("res/bg.wav", true);
 
                               this.standCat();
                           },
+
+                          refreshLabels: function() {
+                              this.balanceLabel.string = this.bet.toFixed(4) + " BET";
+                              this.betAmount = (this.sliderPer * (this.bet / 100));
+                              this.betAmountLabel.string = this.betAmount.toFixed(4) + " BET";
+                              this.returnLabel.string = (this.winRate * this.betAmount).toFixed(4) + " BET";
+                          },
+                          sliderEvent: function (sender, type) {
+                              switch (type) {
+                                  case ccui.Slider.EVENT_PERCENT_CHANGED:
+                                      this.sliderPer = sender.getPercent() + 1 > 100 ? 100 : sender.getPercent() + 1;
+                                      this.betAmount = (this.sliderPer * (this.bet / 100));
+                                      this.betAmountLabel.string = this.betAmount.toFixed(4) + " BET";
+                                      this.returnLabel.string = (this.winRate * this.betAmount).toFixed(4) + " BET";
+                                      break;
+                                  default:
+                                      break;
+                              }
+                          },
+
                           ready:function() {
+                              this.isReady = true;
+
+                              this.title.runAction(new cc.FadeOut(0.5));
+                              this.cat.runAction(new cc.FadeIn(0.5));
                               this.leftBtn.runAction(new cc.FadeIn(1));
                               this.rightBtn.runAction(new cc.FadeIn(1));
+
+                              this.leftBtn.enabled = true;
+                              this.rightBtn.enabled = true;
 
                               this.thinkCat();
                           },
@@ -165,6 +327,8 @@
 
                               this.leftBtn.runAction(new cc.FadeOut(0.5));
                               this.rightBtn.runAction(new cc.FadeOut(0.5));
+                              this.leftBtn.enabled = false;
+                              this.rightBtn.enabled = false;
 
                               result = Math.floor(Math.random() * 2);
 
@@ -195,7 +359,7 @@
                               this.cat.runAction(new cc.FlipX(!this.cat.isFlippedX()));
                               this.cat.runAction(new cc.RepeatForever(new cc.Animate(this.runAni)));
                               this.cat.runAction(new cc.Sequence(
-                                      new cc.MoveTo(1, cc.p(this.size.width / 2, this.size.height / 3.6)),
+                                      new cc.MoveTo(1, cc.p(this.size.width / 2, this.size.height / 2.35)),
                                       new cc.CallFunc(function(sender) {
                                           sender.parent.resultCat();
                                       })
@@ -206,6 +370,7 @@
 
                               if(userChoice == result) {
                                 cc.audioEngine.playEffect("res/perfect.ogg");
+                                this.bet += ( this.betAmount * this.winRate );
 
                                 this.cat.runAction(new cc.Sequence(
                                     new cc.Animate(this.winAni),
@@ -216,6 +381,8 @@
                               }
                               else {
                                   cc.audioEngine.playEffect("res/ouch.mp3");
+
+                                  this.bet -= ( this.betAmount * this.winRate );
 
                                   this.cat.runAction(new cc.Sequence(
                                           new cc.Animate(this.loseAni),
@@ -232,10 +399,20 @@
                               this.choice = -1;
                               this.result = -2;
 
+                              this.title.opacity = 0;
+                              this.cat.opacity = 0;
+                              this.title.setPosition(this.size.width / 2, this.size.height * 1.2);
+                              this.title.runAction(new cc.Spawn(
+                                      new cc.MoveTo(1, this.size.width / 2, this.size.height * 0.8).easing(cc.easeElasticOut()),
+                                      new cc.FadeIn(1)
+                              ));
+
                               this.runAction(new cc.Sequence(
                                       new cc.DelayTime(0.5),
                                       new cc.CallFunc(function(sender) {
-                                          sender.ready();
+                                          sender.startBtn.enabled = true;
+                                          sender.betPanel.runAction(new cc.FadeIn(0.5));
+                                          sender.refreshLabels();
                                       })
                               ));
                           }
