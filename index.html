@@ -21,7 +21,6 @@
 
         body {
             padding:0; margin: 0;
-            background-color:#333;
         }
     </style>
 </head>
@@ -40,8 +39,9 @@
 
                   //load resources
                   var res = ["res/red_button00.png", "res/grey_button05.png", "res/b_Play1.png", "res/b_Play2.png", "res/title.png",
-                        "res/bg.png", "res/b_Forward1.png", "res/b_Forward2.png", "res/b_Backward1.png", "res/b_Backward2.png",
-                        "res/bg.wav", "res/meow.ogg", "res/ouch.mp3", "res/perfect.ogg"],
+                              "res/b_Sound2.png", "res/b_Sound2_Inactive.png", "res/bubble.png",
+                              "res/background.png", "res/b_Forward1.png", "res/b_Forward2.png", "res/b_Backward1.png", "res/b_Backward2.png",
+                        "res/bg.mp3", "res/meow.ogg", "res/ouch.mp3", "res/perfect.ogg"],
                       standRes = [], runRes = [], loseRes = [], winRes = [];
                   var i = 0;
 
@@ -71,6 +71,7 @@
                       var MyScene = cc.Scene.extend({
                           cat : null,
                           title : null,
+                          bubble : null,
 
                           leftBtn : null,
                           rightBtn : null,
@@ -93,11 +94,13 @@
                           winRate : 1.96,
                           isReady : false,
                           sliderPer : 1,
+                          isMute : false,
+                          muteBtn : null,
                           onEnter:function () {
                               this._super();
                               this.size = cc.director.getWinSize();
 
-                              var bg = cc.Sprite.create("res/bg.png");
+                              var bg = cc.Sprite.create("res/background.png");
                               bg.setPosition(this.size.width / 2, this.size.height / 2);
                               this.addChild(bg, 0);
 
@@ -105,6 +108,27 @@
                               label.color = cc.color(0, 0, 0);
                               label.setPosition(size.width / 2, size.height / 2);
                               this.addChild(label, 1);*/
+
+                              // sound control
+                              var muteItem;
+
+                              this.isMute = localStorage.getItem("is_mute") == null ? false : localStorage.getItem("is_mute") == 'true';
+
+                              if(this.isMute) {
+                                  muteItem = new cc.MenuItemImage("res/b_Sound2_Inactive.png", "res/b_Sound2.png", function (sender) {
+                                      sender.parent.parent.mute();
+                                  }, this);
+                              }
+                              else {
+                                  muteItem = new cc.MenuItemImage("res/b_Sound2.png", "res/b_Sound2_Inactive.png", function (sender) {
+                                      sender.parent.parent.mute();
+                                  }, this);
+                              }
+
+                              this.muteBtn = new cc.Menu(muteItem);
+                              muteItem.anchorX = 0;
+                              this.muteBtn.setPosition(this.size.width * 0.05, this.size.height * 0.9);
+                              this.addChild(this.muteBtn, 2);
 
                               // cat
                               this.cat = cc.Sprite.create("res/cat/n1.png");
@@ -117,94 +141,100 @@
                               this.title.opacity = 0;
                               this.addChild(this.title, 1);
 
+                              this.bubble = cc.Sprite.create("res/bubble.png");
+                              this.bubble.setPosition(this.size.width / 2 + 480, this.size.height / 2 + 200);
+                              this.bubble.opacity = 0;
+                              this.addChild(this.bubble, 10);
+
                               // layer panel
                               this.betPanel = new cc.Layer();
                               this.betPanel.cascadeOpacity = true;
-                              this.betPanel.width = 2000;
+                              this.betPanel.width = 2600;
                               this.betPanel.height = 600;
                               this.betPanel.opacity = 0;
                               this.betPanel.setPosition((this.size.width - this.betPanel.width) / 2, this.size.height / 6);
                               this.addChild(this.betPanel, 1);
 
                               var blackBackground = new cc.LayerColor();
-                              blackBackground.width = 2000;
-                              blackBackground.height = 200;
+                              blackBackground.width = 2600;
+                              blackBackground.height = 300;
                               blackBackground.color = cc.color(0, 0, 0);
                               blackBackground.opacity = 170;
-                              blackBackground.setPosition(0, this.size.height / 3.8);
+                              blackBackground.setPosition(0, this.size.height / 3.9);
                               this.betPanel.addChild(blackBackground, 1);
 
                               // balance
-                              var balanceTitleLabel = cc.LabelTTF.create("YOUR BALANCE", "Verdana", 30);
+                              var balanceTitleLabel = cc.LabelTTF.create("YOUR BALANCE", "Verdana", 34);
                               balanceTitleLabel.color = cc.color(150, 150, 150);
-                              balanceTitleLabel.setPosition(200, 550);
+                              balanceTitleLabel.setPosition(300, 600);
                               this.betPanel.addChild(balanceTitleLabel, 2);
 
-                              this.balanceLabel = cc.LabelTTF.create("0 BET", "Verdana", 38);
+                              this.balanceLabel = cc.LabelTTF.create("0 BET", "Verdana", 45);
                               this.balanceLabel.color = cc.color(255, 255, 255);
-                              this.balanceLabel.setPosition(200, 500);
+                              this.balanceLabel.setPosition(300, 550);
                               this.betPanel.addChild(this.balanceLabel, 2);
 
                               // bet amount
-                              var betAmountTitleLabel = cc.LabelTTF.create("BET AMOUNT", "Verdana", 30);
+                              var betAmountTitleLabel = cc.LabelTTF.create("BET AMOUNT", "Verdana", 34);
                               betAmountTitleLabel.color = cc.color(150, 150, 150);
-                              betAmountTitleLabel.setPosition(600, 550);
+                              betAmountTitleLabel.setPosition(950, 600);
                               this.betPanel.addChild(betAmountTitleLabel, 2);
 
                               this.betAmount = this.bet / 100;
 
-                              this.betAmountLabel = cc.LabelTTF.create(this.betAmount.toFixed(4) + " BET", "Verdana", 38);
+                              this.betAmountLabel = cc.LabelTTF.create(this.betAmount.toFixed(4) + " BET", "Verdana", 45);
                               this.betAmountLabel.color = cc.color(255, 255, 255);
-                              this.betAmountLabel.setPosition(600, 500);
+                              this.betAmountLabel.setPosition(950, 550);
                               this.betPanel.addChild(this.betAmountLabel, 2);
 
                               // slider
                               var slider = new ccui.Slider();
+                              slider.scale = 3;
                               slider.setTouchEnabled(true);
                               slider.loadBarTexture("res/cocosui/sliderTrack.png");
                               slider.loadSlidBallTextures("res/cocosui/sliderThumb.png", "res/cocosui/sliderThumb.png", "");
                               slider.loadProgressBarTexture("res/cocosui/sliderProgress.png");
-                              slider.setPosition(600, 450);
+                              slider.setPosition(950, 460);
                               slider.addEventListener(this.sliderEvent, this);
                               this.betPanel.addChild(slider, 2);
 
                               // win chance
-                              var winChanceTitleLabel = cc.LabelTTF.create("WIN CHANCE", "Verdana", 30);
+                              var winChanceTitleLabel = cc.LabelTTF.create("WIN CHANCE", "Verdana", 34);
                               winChanceTitleLabel.color = cc.color(150, 150, 150);
-                              winChanceTitleLabel.setPosition(1000, 550);
+                              winChanceTitleLabel.setPosition(1500, 600);
                               this.betPanel.addChild(winChanceTitleLabel, 2);
 
-                              var winChanceLabel = cc.LabelTTF.create("50.0%", "Verdana", 38);
+                              var winChanceLabel = cc.LabelTTF.create("50.0%", "Verdana", 45);
                               winChanceLabel.color = cc.color(255, 255, 255);
-                              winChanceLabel.setPosition(1000, 500);
+                              winChanceLabel.setPosition(1500, 550);
                               this.betPanel.addChild(winChanceLabel, 2);
 
                               // PAYOUT
-                              var payoutTitleLabel = cc.LabelTTF.create("PAYOUT", "Verdana", 30);
+                              var payoutTitleLabel = cc.LabelTTF.create("PAYOUT", "Verdana", 34);
                               payoutTitleLabel.color = cc.color(150, 150, 150);
-                              payoutTitleLabel.setPosition(1380, 550);
+                              payoutTitleLabel.setPosition(1900, 600);
                               this.betPanel.addChild(payoutTitleLabel, 2);
 
-                              var payoutLabel = cc.LabelTTF.create("x" + this.winRate, "Verdana", 38);
+                              var payoutLabel = cc.LabelTTF.create("x" + this.winRate, "Verdana", 45);
                               payoutLabel.color = cc.color(255, 255, 255);
-                              payoutLabel.setPosition(1380, 500);
+                              payoutLabel.setPosition(1900, 550);
                               this.betPanel.addChild(payoutLabel, 2);
 
                               // RETURN
-                              var returnTitleLabel = cc.LabelTTF.create("RETURN", "Verdana", 30);
+                              var returnTitleLabel = cc.LabelTTF.create("RETURN", "Verdana", 32);
                               returnTitleLabel.color = cc.color(150, 150, 150);
-                              returnTitleLabel.setPosition(1800, 550);
+                              returnTitleLabel.setPosition(2300, 600);
                               this.betPanel.addChild(returnTitleLabel, 2);
 
-                              this.returnLabel = cc.LabelTTF.create((this.winRate * this.betAmount).toFixed(4) + " BET", "Verdana", 38);
+                              this.returnLabel = cc.LabelTTF.create((this.winRate * this.betAmount).toFixed(4) + " BET", "Verdana", 42);
                               this.returnLabel.color = cc.color(255, 255, 255);
-                              this.returnLabel.setPosition(1800, 500);
+                              this.returnLabel.setPosition(2300, 550);
                               this.betPanel.addChild(this.returnLabel, 2);
 
                               this.refreshLabels();
 
                               var startBackground = new cc.Sprite("res/red_button00.png");
-                              startBackground.setPosition(1000, 150);
+                              startBackground.setPosition(1300, 150);
                               startBackground.scale = 7;
                               this.betPanel.addChild(startBackground, 2);
 
@@ -218,7 +248,7 @@
                               startItem.scale = 1.5;
 
                               this.startBtn = new cc.Menu(startItem);
-                              this.startBtn.setPosition(1000, 150);
+                              this.startBtn.setPosition(1300, 150);
                               this.startBtn.enabled = false;
                               this.betPanel.addChild(this.startBtn, 2);
 
@@ -283,11 +313,45 @@
                               this.rightBtn.opacity = 0;
                               this.rightBtn.enabled = false;
 
-                              cc.audioEngine.playMusic("res/bg.wav", true);
+                              if(!this.isMute) {
+                                  cc.audioEngine.playMusic("res/bg.mp3", true);
+                              }
 
                               this.standCat();
                           },
 
+                          mute: function() {
+                              if(this.isMute) {
+                                  this.isMute = false;
+                                  cc.audioEngine.playMusic("res/bg.mp3", true);
+                              }
+                              else {
+                                  this.isMute = true;
+                                  cc.audioEngine.stopMusic("res/bg.mp3");
+                              }
+
+                              this.muteBtn.removeFromParentAndCleanup(true);
+                              var muteItem;
+
+                              if(this.isMute) {
+                                  muteItem = new cc.MenuItemImage("res/b_Sound2_Inactive.png", "res/b_Sound2.png", function (sender) {
+                                      sender.parent.parent.mute();
+                                  }, this);
+                              }
+                              else {
+                                  muteItem = new cc.MenuItemImage("res/b_Sound2.png", "res/b_Sound2_Inactive.png", function (sender) {
+                                      sender.parent.parent.mute();
+                                  }, this);
+                              }
+
+                              muteItem.anchorX = 0;
+
+                              this.muteBtn = new cc.Menu(muteItem);
+                              this.muteBtn.setPosition(this.size.width * 0.05, this.size.height * 0.9);
+                              this.addChild(this.muteBtn, 2);
+
+                              localStorage.setItem("is_mute", this.isMute);
+                          },
                           refreshLabels: function() {
                               this.balanceLabel.string = this.bet.toFixed(4) + " BET";
                               this.betAmount = (this.sliderPer * (this.bet / 100));
@@ -314,6 +378,7 @@
                               this.cat.runAction(new cc.FadeIn(0.5));
                               this.leftBtn.runAction(new cc.FadeIn(1));
                               this.rightBtn.runAction(new cc.FadeIn(1));
+                              this.bubble.runAction(new cc.FadeIn(0.5));
 
                               this.leftBtn.enabled = true;
                               this.rightBtn.enabled = true;
@@ -321,18 +386,19 @@
                               this.thinkCat();
                           },
                           onChoice:function(direction) {
-                              cc.audioEngine.playEffect("res/meow.ogg");
+                              if(!this.isMute) cc.audioEngine.playEffect("res/meow.ogg");
 
-                              userChoice = direction;
+                              this.userChoice = direction;
 
+                              this.bubble.runAction(new cc.FadeOut(0.5));
                               this.leftBtn.runAction(new cc.FadeOut(0.5));
                               this.rightBtn.runAction(new cc.FadeOut(0.5));
                               this.leftBtn.enabled = false;
                               this.rightBtn.enabled = false;
 
-                              result = Math.floor(Math.random() * 2);
+                              this.result = Math.floor(Math.random() * 2);
 
-                              this.moveCat(result);
+                              this.moveCat(this.result);
                           },
                           thinkCat: function() {
                               this.cat.runAction(new cc.Sequence(
@@ -345,10 +411,30 @@
                           },
                           moveCat:function(direction) {
                               this.cat.stopAllActions();
-                              this.cat.runAction(new cc.FlipX(direction));
+                              // go to the goal
                               this.cat.runAction(new cc.RepeatForever(new cc.Animate(this.runAni)));
+                              var hesitateArray = [];
+
+                              for(var i = 0;i < Math.random() * 5;i++) {
+                                  if(Math.random() * 2 > 1) {
+                                      hesitateArray.push(new cc.FlipX(false));
+                                      hesitateArray.push(new cc.MoveBy(0.5, this.size.width * 0.25, 0));
+                                      hesitateArray.push(new cc.FlipX(true));
+                                      hesitateArray.push(new cc.MoveBy(0.5, -this.size.width * 0.25, 0));
+                                  }
+                                  else {
+                                      hesitateArray.push(new cc.FlipX(true));
+                                      hesitateArray.push(new cc.MoveBy(0.5, -this.size.width * 0.25, 0));
+                                      hesitateArray.push(new cc.FlipX(false));
+                                      hesitateArray.push(new cc.MoveBy(0.5, this.size.width * 0.25, 0));
+                                  }
+                              }
+
+                              var hesitateAction = new cc.Sequence(hesitateArray);
                               this.cat.runAction(new cc.Sequence(
-                                      new cc.MoveBy(1, cc.p(direction ? -this.size.width / 1.8 : this.size.width / 1.8, 0)),
+                                      hesitateAction,
+                                      new cc.FlipX(direction),
+                                      new cc.MoveTo(1.2, cc.p(direction ? -this.size.width * 0.2 : this.size.width * 1.2, this.size.height / 2.35)),
                                       new cc.CallFunc(function(sender) {
                                           sender.parent.returnCat();
                                       })
@@ -368,8 +454,8 @@
                           resultCat:function() {
                               this.cat.stopAllActions();
 
-                              if(userChoice == result) {
-                                cc.audioEngine.playEffect("res/perfect.ogg");
+                              if(this.userChoice == this.result) {
+                                  if(!this.isMute) cc.audioEngine.playEffect("res/perfect.ogg");
                                 this.bet += ( this.betAmount * this.winRate );
 
                                 this.cat.runAction(new cc.Sequence(
@@ -380,7 +466,7 @@
                                 ));
                               }
                               else {
-                                  cc.audioEngine.playEffect("res/ouch.mp3");
+                                  if(!this.isMute) cc.audioEngine.playEffect("res/ouch.mp3");
 
                                   this.bet -= ( this.betAmount * this.winRate );
 
@@ -403,7 +489,7 @@
                               this.cat.opacity = 0;
                               this.title.setPosition(this.size.width / 2, this.size.height * 1.2);
                               this.title.runAction(new cc.Spawn(
-                                      new cc.MoveTo(1, this.size.width / 2, this.size.height * 0.8).easing(cc.easeElasticOut()),
+                                      new cc.MoveTo(1, this.size.width / 2, this.size.height * 0.82).easing(cc.easeElasticOut()),
                                       new cc.FadeIn(1)
                               ));
 
