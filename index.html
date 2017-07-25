@@ -38,7 +38,7 @@
                   cc.view.setOrientation(cc.ORIENTATION_LANDSCAPE);
 
                   //load resources
-                  var res = ["res/red_button00.png", "res/grey_button05.png", "res/b_Play1.png", "res/b_Play2.png", "res/title.png",
+                  var res = ["res/red_button00.png", "res/grey_button05.png", "res/b_Play1.png", "res/b_Play2.png", "res/b_Restart.png", "res/title.png",
                               "res/b_Sound2.png", "res/b_Sound2_Inactive.png", "res/bubble.png",
                               "res/background.png", "res/b_Forward1.png", "res/b_Forward2.png", "res/b_Backward1.png", "res/b_Backward2.png",
                         "res/bg.mp3", "res/meow.ogg", "res/ouch.mp3", "res/perfect.ogg"],
@@ -76,6 +76,7 @@
                           leftBtn : null,
                           rightBtn : null,
                           startBtn : null,
+                          restartBtn : null,
 
                           size : null,
                           runAni : null,
@@ -91,6 +92,9 @@
                           balanceLabel : null,
                           betAmountLabel : null,
                           returnLabel : null,
+                          resultLabel : null,
+                          resultBackground : null,
+
                           winRate : 1.96,
                           isReady : false,
                           sliderPer : 1,
@@ -251,6 +255,34 @@
                               this.startBtn.setPosition(1300, 150);
                               this.startBtn.enabled = false;
                               this.betPanel.addChild(this.startBtn, 2);
+
+                              var restartItem = new cc.MenuItemImage("res/b_Restart.png", "res/b_Restart.png", function (sender) {
+                                  sender.runAction(new cc.Sequence(new cc.ScaleTo(0.05, 2, 2), new cc.ScaleTo(0.05, 2.5, 2.5)));
+                                  sender.parent.enabled = false;
+                                  sender.parent.runAction(new cc.FadeOut(0.3));
+                                  sender.parent.parent.resultLabel.runAction(new cc.FadeOut(0.3));
+                                  sender.parent.parent.resultBackground.runAction(new cc.FadeOut(0.3));
+                                  this.standCat();
+                              }, this);
+
+                              restartItem.scale = 2.5;
+                              this.restartBtn = new cc.Menu(restartItem);
+                              this.restartBtn.setPosition(this.size.width / 2, this.size.height / 2 + 35);
+                              this.restartBtn.enabled = false;
+                              this.restartBtn.opacity = 0;
+                              this.addChild(this.restartBtn, 2);
+
+                              this.resultBackground = new cc.Sprite("res/red_button00.png");
+                              this.resultBackground.setPosition(this.size.width / 2, this.size.height * 0.82);
+                              this.resultBackground.scale = 7;
+                              this.resultBackground.opacity = 0;
+                              this.addChild(this.resultBackground);
+
+                              this.resultLabel = cc.LabelTTF.create("", "Verdana", 100);
+                              this.resultLabel.color = cc.color(255, 255, 255);
+                              this.resultLabel.setPosition(this.size.width / 2, this.size.height * 1.2);
+                              this.resultLabel.opacity = 0;
+                              this.addChild(this.resultLabel, 2);
 
                               this.standAni = new cc.Animation();
 
@@ -413,20 +445,22 @@
                               this.cat.stopAllActions();
                               // go to the goal
                               this.cat.runAction(new cc.RepeatForever(new cc.Animate(this.runAni)));
-                              var hesitateArray = [];
+                              var hesitateArray = [], count = Math.random() * 5;
 
-                              for(var i = 0;i < Math.random() * 5;i++) {
+                              for(var i = 0;i < count + 3;i++) {
                                   if(Math.random() * 2 > 1) {
                                       hesitateArray.push(new cc.FlipX(false));
-                                      hesitateArray.push(new cc.MoveBy(0.5, this.size.width * 0.25, 0));
-                                      hesitateArray.push(new cc.FlipX(true));
-                                      hesitateArray.push(new cc.MoveBy(0.5, -this.size.width * 0.25, 0));
+                                      hesitateArray.push(new cc.DelayTime(0.15 + Math.random() / 2));
+                                      // hesitateArray.push(new cc.MoveBy(0.25, this.size.width * 0.16, 0));
+                                      // hesitateArray.push(new cc.FlipX(true));
+                                      // hesitateArray.push(new cc.MoveBy(0.25, -this.size.width * 0.16, 0));
                                   }
                                   else {
                                       hesitateArray.push(new cc.FlipX(true));
-                                      hesitateArray.push(new cc.MoveBy(0.5, -this.size.width * 0.25, 0));
-                                      hesitateArray.push(new cc.FlipX(false));
-                                      hesitateArray.push(new cc.MoveBy(0.5, this.size.width * 0.25, 0));
+                                      hesitateArray.push(new cc.DelayTime(0.15 + Math.random() / 2));
+                                      // hesitateArray.push(new cc.MoveBy(0.25, -this.size.width * 0.16, 0));
+                                      // hesitateArray.push(new cc.FlipX(false));
+                                      // hesitateArray.push(new cc.MoveBy(0.25, this.size.width * 0.16, 0));
                                   }
                               }
 
@@ -456,27 +490,39 @@
 
                               if(this.userChoice == this.result) {
                                   if(!this.isMute) cc.audioEngine.playEffect("res/perfect.ogg");
-                                this.bet += ( this.betAmount * this.winRate );
+                                this.bet += ( this.betAmount * this.winRate ) - this.betAmount;
+                                this.resultLabel.string = "+" + ( ( this.betAmount * this.winRate ) - this.betAmount ).toFixed(4) + " BET";
 
                                 this.cat.runAction(new cc.Sequence(
                                     new cc.Animate(this.winAni),
                                     new cc.CallFunc(function(sender) {
-                                        sender.parent.standCat();
+                                        sender.parent.resultShow();
                                     })
                                 ));
                               }
                               else {
                                   if(!this.isMute) cc.audioEngine.playEffect("res/ouch.mp3");
 
-                                  this.bet -= ( this.betAmount * this.winRate );
+                                  this.bet -= this.betAmount;
+                                  this.resultLabel.string = "-" + this.betAmount.toFixed(4) + " BET";
 
                                   this.cat.runAction(new cc.Sequence(
                                           new cc.Animate(this.loseAni),
                                           new cc.CallFunc(function(sender) {
-                                              sender.parent.standCat();
+                                              sender.parent.resultShow();
                                           })
                                   ));
                               }
+                          },
+                          resultShow:function() {
+                              this.restartBtn.enabled = true;
+                              this.restartBtn.runAction(new cc.FadeIn(0.5));
+                              this.resultBackground.runAction(new cc.FadeIn(0.5));
+                              this.resultLabel.setPosition(this.size.width / 2, this.size.height * 1.2);
+                              this.resultLabel.runAction(new cc.Spawn(
+                                      new cc.MoveTo(1, this.size.width / 2, this.size.height * 0.82).easing(cc.easeElasticOut()),
+                                      new cc.FadeIn(1)
+                              ));
                           },
                           standCat:function() {
                               this.cat.stopAllActions();
