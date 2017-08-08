@@ -35,7 +35,7 @@
                   cc.view.resizeWithBrowserSize(true);
                   cc.view.setOrientation(cc.ORIENTATION_LANDSCAPE);
 
-                  //load resources
+                  // Load resources
                   var res = ["res/red_button00.png", "res/grey_button05.png", "res/b_Play1.png", "res/b_Play2.png", "res/b_Restart.png", "res/title.png",
                               "res/b_Sound2.png", "res/b_Sound2_Inactive.png", "res/bubble.png",
                               "res/background.png", "res/b_Forward1.png", "res/b_Forward2.png", "res/b_Backward1.png", "res/b_Backward2.png",
@@ -67,6 +67,11 @@
 
                   cc.LoaderScene.preload(res, function () {
                       var MyScene = cc.Scene.extend({
+                          DIRECTION : {
+                              RIGHT : 0,
+                              LEFT : 1
+                          },
+
                           cat : null,
                           title : null,
                           bubble : null,
@@ -75,29 +80,28 @@
                           rightBtn : null,
                           startBtn : null,
                           restartBtn : null,
+                          muteBtn : null,
 
                           size : null,
                           runAni : null,
                           standAni : null,
-                          DIRECTION : {
-                              RIGHT : 0,
-                              LEFT : 1
-                          },
-                          userChoice : 0,
-                          result : 0,
-                          bet : 1000,
-                          betAmount : 0,
+
                           balanceLabel : null,
                           betAmountLabel : null,
                           returnLabel : null,
                           resultLabel : null,
                           resultBackground : null,
 
+                          userChoice : 0,
+                          result : 0,
+                          bet : 1000,
+                          betAmount : 0,
+
                           winRate : 1.96,
                           isReady : false,
                           sliderPer : 1,
                           isMute : false,
-                          muteBtn : null,
+
                           onEnter:function () {
                               this._super();
                               this.size = cc.director.getWinSize();
@@ -280,7 +284,7 @@
                               this.resultLabel.opacity = 0;
                               this.addChild(this.resultLabel, 2);
 
-                              // init choice menu
+                              // Choice menu
                               var leftItem = new cc.MenuItemImage("res/b_Backward1.png", "res/b_Backward2.png", function (sender) {
                                   if(!sender.parent.parent.isReady) return;
                                   sender.parent.parent.isReady = false;
@@ -313,7 +317,7 @@
                                   cc.audioEngine.playMusic("res/bg.mp3", true);
                               }
 
-                              // Animation init
+                              // Animations
                               this.standAni = new cc.Animation();
 
                               for(i = 1;i < standRes.length;i++) {
@@ -446,7 +450,7 @@
                           
                           moveCat:function(direction) {
                               this.cat.stopAllActions();
-                              // go to the goal
+                              // Go to the goal
                               this.cat.runAction(new cc.RepeatForever(new cc.Animate(this.runAni)));
                               var hesitateArray = [], count = Math.random() * 5;
 
@@ -454,16 +458,10 @@
                                   if(Math.random() * 2 > 1) {
                                       hesitateArray.push(new cc.FlipX(false));
                                       hesitateArray.push(new cc.DelayTime(0.15 + Math.random() / 2));
-                                      // hesitateArray.push(new cc.MoveBy(0.25, this.size.width * 0.16, 0));
-                                      // hesitateArray.push(new cc.FlipX(true));
-                                      // hesitateArray.push(new cc.MoveBy(0.25, -this.size.width * 0.16, 0));
                                   }
                                   else {
                                       hesitateArray.push(new cc.FlipX(true));
                                       hesitateArray.push(new cc.DelayTime(0.15 + Math.random() / 2));
-                                      // hesitateArray.push(new cc.MoveBy(0.25, -this.size.width * 0.16, 0));
-                                      // hesitateArray.push(new cc.FlipX(false));
-                                      // hesitateArray.push(new cc.MoveBy(0.25, this.size.width * 0.16, 0));
                                   }
                               }
 
